@@ -14,13 +14,15 @@ public class Meal {
 
     private final int calories;
 
+    public static final Meal EMPTY = new Meal();
+
     public Meal(LocalDateTime dateTime, String description, int calories) {
         this.dateTime = dateTime;
         this.description = description;
         this.calories = calories;
     }
 
-    public Meal() { // FIXME: 11.02.2019 времянка
+    private Meal() {
         this(null, null, 0);
     }
 

@@ -11,6 +11,7 @@
 <h2>Список еды</h2>
 <table>
     <tr>
+        <th>id</th>
         <th>Дата, время</th>
         <th>Описание</th>
         <th>Калории</th>
@@ -18,6 +19,7 @@
     <c:forEach var="mealTo" items="${mealList}">
         <jsp:useBean id="mealTo" type="ru.javawebinar.topjava.model.MealTo"/>
         <tr bgcolor=${mealTo.excess ? "FF0000" : "00FF00"}>
+            <td class="data">${mealTo.id}</td>
             <td class="data">
                     ${mealTo.dateTime.format(dateTimeFormatter)}
             </td>
@@ -28,6 +30,6 @@
         </tr>
     </c:forEach>
 </table>
-
+<a href="meals?action=create">Добавить</a>
 </body>
 </html>

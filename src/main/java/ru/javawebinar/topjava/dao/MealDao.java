@@ -1,4 +1,4 @@
-package ru.javawebinar.topjava.storage;
+package ru.javawebinar.topjava.dao;
 
 import ru.javawebinar.topjava.model.Meal;
 
@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Created by Viktor on 11.02.2019.
  */
-public interface MealStorageInterface {
+public interface MealDao {
 
     List<Meal> getAll();
 

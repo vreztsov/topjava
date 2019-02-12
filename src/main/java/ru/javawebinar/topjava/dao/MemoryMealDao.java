@@ -1,4 +1,4 @@
-package ru.javawebinar.topjava.storage;
+package ru.javawebinar.topjava.dao;
 
 import ru.javawebinar.topjava.model.Meal;
 
@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Created by Viktor on 11.02.2019.
  */
-public class MemoryMealStorage implements MealStorageInterface {
+public class MemoryMealDao implements MealDao {
     private Map<Integer, Meal> mealMap = new ConcurrentHashMap<>();
 
     private AtomicInteger atomicId = new AtomicInteger();
@@ -28,7 +28,7 @@ public class MemoryMealStorage implements MealStorageInterface {
             new Meal(LocalDateTime.of(2015, Month.MAY, 31, 20, 0), "Ужин", 510)
     );
 
-    public MemoryMealStorage() {
+    public MemoryMealDao() {
         MEALS.forEach(this::save);
     }
 
@@ -40,7 +40,6 @@ public class MemoryMealStorage implements MealStorageInterface {
     @Override
     public void delete(int id) {
         mealMap.remove(id);
-
     }
 
     @Override

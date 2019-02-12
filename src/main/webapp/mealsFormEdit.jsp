@@ -29,7 +29,7 @@
         <br>
         <br>
         <div>
-            <input type="submit" name="save" value="save"/>
+            <input type="submit" name="save" value="Сохранить"/>
         </div>
     </form>
 </div>
