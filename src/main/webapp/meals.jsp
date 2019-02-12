@@ -17,13 +17,14 @@
     </tr>
     <c:forEach var="mealTo" items="${mealList}">
         <jsp:useBean id="mealTo" type="ru.javawebinar.topjava.model.MealTo"/>
-        <%--<tr bgcolor=${mealTo.excess ? "D40304" : "148517"}>--%>
         <tr bgcolor=${mealTo.excess ? "FF0000" : "00FF00"}>
-            <td>
-                ${mealTo.dateTime.format(dateTimeFormatter)}
+            <td class="data">
+                    ${mealTo.dateTime.format(dateTimeFormatter)}
             </td>
-            <td>${mealTo.description}</td>
-            <td>${mealTo.calories}</td>
+            <td class="data">${mealTo.description}</td>
+            <td class="data">${mealTo.calories}</td>
+            <td class="action"><a href="meals?action=update&id=${mealTo.id}">Изменить</a></td>
+            <td class="action"><a href="meals?action=delete&id=${mealTo.id}">Удалить</a></td>
         </tr>
     </c:forEach>
 </table>

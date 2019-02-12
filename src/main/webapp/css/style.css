@@ -6,6 +6,7 @@ table {
 tr {
     border: 1px solid black;
     border-collapse: collapse;
+
 }
 
 th {
@@ -13,7 +14,14 @@ th {
     border-collapse: collapse;
 }
 
-td {
+td.data {
     border: 1px solid black;
     border-collapse: collapse;
+
 }
+
+td.action {
+    border: none;
+    background-color: white;
+}
+
