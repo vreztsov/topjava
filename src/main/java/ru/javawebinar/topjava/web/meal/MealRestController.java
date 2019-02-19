@@ -31,29 +31,29 @@ public class MealRestController {
 
     public Meal create(Meal meal) {
         log.info("create {}", meal);
-        return service.create(SecurityUtil.authUserId(), meal);
+        return service.create(SecurityUtil.getAuthUserId(), meal);
     }
 
     public void delete(int id) {
         log.info("delete {}", id);
-        service.delete(SecurityUtil.authUserId(), id);
+        service.delete(SecurityUtil.getAuthUserId(), id);
     }
 
     public Meal get(int id) throws NotFoundException {
         log.info("get {}", id);
-        return service.get(SecurityUtil.authUserId(), id);
+        return service.get(SecurityUtil.getAuthUserId(), id);
     }
 
     public void update(Meal meal, int id) {
         log.info("update {} with id={}", meal, id);
         assureIdConsistent(meal, id);
-        service.update(SecurityUtil.authUserId(), meal);
+        service.update(SecurityUtil.getAuthUserId(), meal);
     }
 
     public List<MealTo> getAll() {
         log.info("getAll");
         List<MealTo> list = MealsUtil.getWithExcess(
-                service.getAll(SecurityUtil.authUserId()),
+                service.getAll(SecurityUtil.getAuthUserId()),
                 SecurityUtil.authUserCaloriesPerDay());
         logList(list);
         return list;
@@ -62,7 +62,7 @@ public class MealRestController {
     public List<MealTo> getAllWithFilter(LocalDate startDate, LocalTime startTime, LocalDate endDate, LocalTime endTime) {
         log.info("getAllWithFilter startDate = {}, startTime = {}, endDate = {}, endTime = {}", startDate, startTime, endDate, endTime);
         List<MealTo> list = MealsUtil.getFilteredWithExcess(service.getAllForPeriod(
-                SecurityUtil.authUserId(),
+                SecurityUtil.getAuthUserId(),
                 startDate == null ? LocalDate.MIN : startDate,
                 endDate == null ? LocalDate.MAX : endDate),
                 SecurityUtil.authUserCaloriesPerDay(),
@@ -71,6 +71,8 @@ public class MealRestController {
         logList(list);
         return list;
     }
+
+
 
     private void logList(List<MealTo> list) {
         list.forEach(mealTo -> log.info("listed {}", mealTo));

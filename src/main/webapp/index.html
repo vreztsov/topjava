@@ -9,6 +9,16 @@
 <ul>
     <li><a href="users">Users</a></li>
     <li><a href="meals">Meals</a></li>
+    <li>
+        <label for="selectId">Выберите пользователя</label>
+        <form action="users" method="post">
+            <select name="userId" id="selectId">
+                <option value="1">1</option>
+                <option value="2">2</option>
+            </select>
+            <button type="submit">Choose</button>
+        </form>
+    </li>
 </ul>
 </body>
 </html>

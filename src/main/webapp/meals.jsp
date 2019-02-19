@@ -18,8 +18,31 @@
 </head>
 <body>
 <section>
-    <h3><a href="index.html">Home</a></h3>
-    <h2>Meals</h2>
+    <h3><a href="index.html">Домашняя страница</a></h3>
+    <h2>Моя еда</h2>
+    <form method="get" action="meals">
+        <table>
+            <tr>
+                <td>
+                    startDate: <input type="date" value="${param.startDate}" name="startDate">
+                </td>
+                <td>
+                    startTime: <input type="time" value="${param.startTime}" name="startTime">
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    endDate: <input type="date" value="${param.endDate}" name="endDate">
+                </td>
+                <td>
+                    endTime: <input type="time" value="${param.endTime}" name="endTime">
+                </td>
+            </tr>
+        </table>
+        <p>
+            <input type="submit" value="Apply filter">            
+        </p>
+    </form>
     <a href="meals?action=create">Add Meal</a>
     <hr/>
     <table border="1" cellpadding="8" cellspacing="0">
