@@ -49,6 +49,7 @@ public class MealServlet extends HttpServlet {
                 LocalDateTime.parse(request.getParameter("dateTime")),
                 request.getParameter("description"),
                 Integer.parseInt(request.getParameter("calories")));
+        meal.setUserId(SecurityUtil.getAuthUserId());
         if (meal.isNew()) {
             log.info("Create {}", meal);
             mealRestController.create(meal);
