@@ -40,8 +40,11 @@ public class MealServiceTest {
     public void create() {
         Meal created = new Meal(LocalDateTime.now(), "new meal", 444);
         Meal createdDB = service.create(created, USER_ID);
-        created.setId(createdDB.getId());
+        int id = createdDB.getId();
+        created.setId(id);
+        Meal fromDB = service.get(id, USER_ID);
         assertMatch(createdDB, created);
+        assertMatch(fromDB, created);
     }
 
     @Test
@@ -69,7 +72,7 @@ public class MealServiceTest {
 
     @Test(expected = NotFoundException.class)
     public void getVicarious() {
-        Meal meal = service.get(MEAL_ID, ADMIN_ID);
+        service.get(MEAL_ID, ADMIN_ID);
     }
 
     @Test
@@ -100,14 +103,5 @@ public class MealServiceTest {
                         .filter(meal -> Util.isBetween(meal.getDateTime().toLocalDate(), START_DATE.toLocalDate(), END_DATE.toLocalDate()))
                         .collect(Collectors.toList())
         );
-    }
-
-    private Meal getForUpdate() {
-        Meal meal = new Meal();
-        meal.setId(MEAL_ID);
-        meal.setDateTime(LocalDateTime.now());
-        meal.setDescription("Новая еда");
-        meal.setCalories(505);
-        return meal;
     }
 }
