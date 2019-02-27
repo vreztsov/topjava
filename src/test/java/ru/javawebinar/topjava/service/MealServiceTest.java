@@ -4,6 +4,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlConfig;
@@ -13,6 +14,8 @@ import ru.javawebinar.topjava.util.Util;
 import ru.javawebinar.topjava.util.exception.NotFoundException;
 
 import java.time.LocalDateTime;
+import java.time.Month;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static ru.javawebinar.topjava.MealTestData.*;
@@ -40,11 +43,10 @@ public class MealServiceTest {
     public void create() {
         Meal created = new Meal(LocalDateTime.now(), "new meal", 444);
         Meal createdDB = service.create(created, USER_ID);
-        int id = createdDB.getId();
-        created.setId(id);
-        Meal fromDB = service.get(id, USER_ID);
-        assertMatch(createdDB, created);
+        Meal fromDB = service.get(createdDB.getId(), USER_ID);
+        List<Meal> changedList = service.getAll(USER_ID);
         assertMatch(fromDB, created);
+        assertMatch(changedList.subList(1, changedList.size()), USERS_MEAL_LIST);
     }
 
     @Test
@@ -103,5 +105,12 @@ public class MealServiceTest {
                         .filter(meal -> Util.isBetween(meal.getDateTime().toLocalDate(), START_DATE.toLocalDate(), END_DATE.toLocalDate()))
                         .collect(Collectors.toList())
         );
+    }
+
+    @Test(expected = DuplicateKeyException.class)
+    public void theSameDate() {
+        Meal meal = new Meal(LocalDateTime.of(2015, Month.MAY, 30, 10, 0),
+                "Завтрак", 500);
+        service.create(meal, USER_ID);
     }
 }
