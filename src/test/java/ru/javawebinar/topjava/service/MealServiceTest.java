@@ -38,6 +38,8 @@ import static ru.javawebinar.topjava.UserTestData.USER_ID;
 public class MealServiceTest {
 
     private static final Logger log = LoggerFactory.getLogger(MealServiceTest.class);
+    private static final String SEPARATOR = "----------------------------------------------------------";
+    private static StringBuilder stringBuilder = new StringBuilder("\n" + SEPARATOR + "\n");
 
     static {
         SLF4JBridgeHandler.install();
@@ -50,10 +52,9 @@ public class MealServiceTest {
     public Stopwatch stopwatch = new Stopwatch() {
         @Override
         protected void finished(long nanos, Description description) {
-            String methodName = description.getMethodName();
             long time = TimeUnit.NANOSECONDS.toMillis(nanos);
-            log.info(String.format("test %s duration %d milliseconds ", methodName, time));
-            executeTestMap.put(methodName, time);
+            log.info(String.format("duration %d milliseconds ", time));
+            stringBuilder.append(String.format("%-32s: %s ms\n", description.getMethodName(), time));
         }
     };
 
@@ -66,9 +67,8 @@ public class MealServiceTest {
 
     @AfterClass
     public static void afterClass() {
-        StringBuilder sb = new StringBuilder();
-        executeTestMap.forEach((key, value) -> sb.append(String.format("test %s duration %d milliseconds\n", key, value)));
-        log.info(String.format("Durations of %s tests:\n%s", MealServiceTest.class.getSimpleName(), sb.toString()));
+        stringBuilder.append(SEPARATOR + "\n");
+        log.info(String.format("Durations of all tests:\n%s", stringBuilder.toString()));
 
     }
 
