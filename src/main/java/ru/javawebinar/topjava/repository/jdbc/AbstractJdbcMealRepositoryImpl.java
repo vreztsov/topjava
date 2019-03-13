@@ -8,7 +8,6 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
-import org.springframework.stereotype.Repository;
 import ru.javawebinar.topjava.model.Meal;
 import ru.javawebinar.topjava.repository.MealRepository;
 
@@ -16,7 +15,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 
-public abstract class AbstractJdbcMealRepositoryImpl implements MealRepository {
+public abstract class AbstractJdbcMealRepositoryImpl<T> implements MealRepository {
 
     private static final RowMapper<Meal> ROW_MAPPER = BeanPropertyRowMapper.newInstance(Meal.class);
 
@@ -35,7 +34,7 @@ public abstract class AbstractJdbcMealRepositoryImpl implements MealRepository {
                 .usingGeneratedKeyColumns("id");
     }
 
-    protected abstract Object getDbSpecificDateTime(LocalDateTime localDateTime);
+    protected abstract T getDbSpecificDateTime(LocalDateTime localDateTime);
 
     @Override
     public Meal save(Meal meal, int userId) {
