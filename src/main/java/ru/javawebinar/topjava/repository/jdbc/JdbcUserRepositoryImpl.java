@@ -2,10 +2,7 @@ package ru.javawebinar.topjava.repository.jdbc;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.support.DataAccessUtils;
-import org.springframework.jdbc.core.BeanPropertyRowMapper;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.ResultSetExtractor;
-import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.*;
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
@@ -15,7 +12,14 @@ import ru.javawebinar.topjava.model.Role;
 import ru.javawebinar.topjava.model.User;
 import ru.javawebinar.topjava.repository.UserRepository;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.*;
+import java.util.function.BiConsumer;
+import java.util.function.BinaryOperator;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -51,12 +55,16 @@ public class JdbcUserRepositoryImpl implements UserRepository {
         if (user.isNew()) {
             Number newKey = insertUser.executeAndReturnKey(parameterSource);
             user.setId(newKey.intValue());
-        } else if (namedParameterJdbcTemplate.update(
-                "UPDATE users SET name=:name, email=:email, password=:password, " +
-                        "registered=:registered, enabled=:enabled, calories_per_day=:caloriesPerDay WHERE id=:id", parameterSource) == 0) {
-            return null;
+        } else {
+            if (namedParameterJdbcTemplate.update(
+                    "UPDATE users SET name=:name, email=:email, password=:password, " +
+                            "registered=:registered, enabled=:enabled, calories_per_day=:caloriesPerDay WHERE id=:id", parameterSource) == 0) {
+                return null;
+            }
+            deleteRoles(user.getId());
         }
-        return setRolesToUser(user);
+        insertRoles(user.getRoles(), user.getId());
+        return user;
     }
 
     @Override
@@ -67,44 +75,85 @@ public class JdbcUserRepositoryImpl implements UserRepository {
 
     @Override
     public User get(int id) {
-        List<User> users = jdbcTemplate.query("SELECT * FROM users WHERE id=?", ROW_MAPPER, id);
-        User user = DataAccessUtils.singleResult(users);
-        return setRolesToUser(user);
+        List<User> users = jdbcTemplate.query("SELECT * FROM users u " +
+                "LEFT JOIN user_roles ur ON ur.user_id = u.id " +
+                "WHERE id = ?", ROW_MAPPER, id);
+        return DataAccessUtils.singleResult(mergeUserRoles(users));
     }
 
     @Override
     public User getByEmail(String email) {
-        List<User> users = jdbcTemplate.query("SELECT * FROM users WHERE email=?", ROW_MAPPER, email);
-        User user = DataAccessUtils.singleResult(users);
-        return setRolesToUser(user);
+        List<User> users = jdbcTemplate.query("SELECT * FROM users u " +
+                "LEFT JOIN user_roles ur ON u.id = ur.user_id " +
+                "WHERE email=?", ROW_MAPPER, email);
+        return DataAccessUtils.singleResult(mergeUserRoles(users));
     }
 
     @Override
     public List<User> getAll() {
-        List<User> users = jdbcTemplate.query("SELECT * FROM users ORDER BY name, email", ROW_MAPPER);
-        ResultSetExtractor<Map<Integer, Set<Role>>> rse = resultSet -> {
-            Map<Integer, Set<Role>> roles = new LinkedHashMap<>();
-            while (resultSet.next()) {
-                roles.merge(resultSet.getInt("user_id"),
-                        Stream.of(Enum.valueOf(Role.class, resultSet.getString("role"))).collect(Collectors.toSet()),
-                        (roles1, roles2) -> {
-                            roles1.addAll(roles2);
-                            return roles1;
-                        });
-            }
-            return roles;
-        };
-        Map<Integer, Set<Role>> roles = jdbcTemplate.query("SELECT * FROM user_roles", rse);
-        users.forEach(user -> user.setRoles(roles.get(user.getId())));
-        return users;
+        return mergeUserRoles(jdbcTemplate.query("SELECT * FROM users u " +
+                "LEFT JOIN user_roles ur ON u.id = ur.user_id " +
+                "ORDER BY name, email", ROW_MAPPER));
     }
 
-    private User setRolesToUser(User user) {
-        if (user == null) {
-            return null;
-        }
-        List<Role> roles = jdbcTemplate.query("SELECT role FROM user_roles WHERE user_id=?", ROLE_ROW_MAPPER, user.getId());
-        user.setRoles(new LinkedHashSet<>(roles));
-        return user;
+    private int[] insertRoles(Set<Role> roles, Integer userId) {
+        List<Role> roleList = new ArrayList<>(roles);
+        return jdbcTemplate.batchUpdate(
+                "INSERT INTO user_roles (user_id, role) VALUES (?, ?)",
+                new BatchPreparedStatementSetter() {
+                    public void setValues(PreparedStatement ps, int i) throws SQLException {
+                        ps.setInt(1, userId);
+                        ps.setString(2, roleList.get(i).name());
+                    }
+
+                    public int getBatchSize() {
+                        return roleList.size();
+                    }
+                });
     }
+
+    private void deleteRoles(Integer userId) {
+        jdbcTemplate.update("DELETE FROM user_roles ur WHERE ur.user_id = ?", userId);
+    }
+
+    private List<User> mergeUserRoles(List<User> users) {
+        class UserCollector implements Collector<User, Map<Integer, User>, List<User>> {
+            @Override
+            public Supplier<Map<Integer, User>> supplier() {
+                return LinkedHashMap::new;
+            }
+
+            @Override
+            public BiConsumer<Map<Integer, User>, User> accumulator() {
+                return (map, user) -> map.merge(user.getId(), user, (oldUser, newUser) -> {
+                    Set<Role> roles = oldUser.getRoles();
+                    roles.addAll(newUser.getRoles());
+                    oldUser.setRoles(roles);
+                    return oldUser;
+                });
+            }
+
+            @Override
+            public BinaryOperator<Map<Integer, User>> combiner() {
+                return (map1, map2) -> {
+                    map1.putAll(map2);
+                    return map1;
+                };
+            }
+
+            @Override
+            public Function<Map<Integer, User>, List<User>> finisher() {
+                return (map) -> new ArrayList<>(map.values());
+            }
+
+            @Override
+            public Set<Characteristics> characteristics() {
+                return Collections.emptySet();
+            }
+        }
+        return users.stream()
+                .collect(new UserCollector());
+    }
+
+
 }
