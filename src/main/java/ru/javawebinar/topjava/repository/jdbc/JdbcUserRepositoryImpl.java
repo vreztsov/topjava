@@ -2,34 +2,25 @@ package ru.javawebinar.topjava.repository.jdbc;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.support.DataAccessUtils;
-import org.springframework.jdbc.core.*;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import ru.javawebinar.topjava.model.Role;
 import ru.javawebinar.topjava.model.User;
 import ru.javawebinar.topjava.repository.UserRepository;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.*;
-import java.util.function.BiConsumer;
-import java.util.function.BinaryOperator;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Repository
 @Transactional(readOnly = true)
 public class JdbcUserRepositoryImpl implements UserRepository {
 
     private static final BeanPropertyRowMapper<User> ROW_MAPPER = BeanPropertyRowMapper.newInstance(User.class);
-
-    private static final RowMapper<Role> ROLE_ROW_MAPPER = (resultSet, i) -> Enum.valueOf(Role.class, resultSet.getString("role"));
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -55,15 +46,19 @@ public class JdbcUserRepositoryImpl implements UserRepository {
         if (user.isNew()) {
             Number newKey = insertUser.executeAndReturnKey(parameterSource);
             user.setId(newKey.intValue());
+            insertRoles(user);
         } else {
             if (namedParameterJdbcTemplate.update(
                     "UPDATE users SET name=:name, email=:email, password=:password, " +
                             "registered=:registered, enabled=:enabled, calories_per_day=:caloriesPerDay WHERE id=:id", parameterSource) == 0) {
                 return null;
             }
-            deleteRoles(user.getId());
+            // Simplest implementation.
+            // More complicated : get user roles from DB and compare them with user.roles (assume that roles are changed rarely).
+            // If roles are changed, calculate difference in java and delete/insert them.
+            deleteRoles(user);
+            insertRoles(user);
         }
-        insertRoles(user.getRoles(), user.getId());
         return user;
     }
 
@@ -75,85 +70,50 @@ public class JdbcUserRepositoryImpl implements UserRepository {
 
     @Override
     public User get(int id) {
-        List<User> users = jdbcTemplate.query("SELECT * FROM users u " +
-                "LEFT JOIN user_roles ur ON ur.user_id = u.id " +
-                "WHERE id = ?", ROW_MAPPER, id);
-        return DataAccessUtils.singleResult(mergeUserRoles(users));
+        List<User> users = jdbcTemplate.query("SELECT * FROM users WHERE id=?", ROW_MAPPER, id);
+        return setRoles(DataAccessUtils.singleResult(users));
     }
 
     @Override
     public User getByEmail(String email) {
-        List<User> users = jdbcTemplate.query("SELECT * FROM users u " +
-                "LEFT JOIN user_roles ur ON u.id = ur.user_id " +
-                "WHERE email=?", ROW_MAPPER, email);
-        return DataAccessUtils.singleResult(mergeUserRoles(users));
+//        return jdbcTemplate.queryForObject("SELECT * FROM users WHERE email=?", ROW_MAPPER, email);
+        List<User> users = jdbcTemplate.query("SELECT * FROM users WHERE email=?", ROW_MAPPER, email);
+        return setRoles(DataAccessUtils.singleResult(users));
     }
 
     @Override
     public List<User> getAll() {
-        return mergeUserRoles(jdbcTemplate.query("SELECT * FROM users u " +
-                "LEFT JOIN user_roles ur ON u.id = ur.user_id " +
-                "ORDER BY name, email", ROW_MAPPER));
+        Map<Integer, Set<Role>> map = new HashMap<>();
+        jdbcTemplate.query("SELECT * FROM user_roles", rs -> {
+            map.computeIfAbsent(rs.getInt("user_id"), userId -> EnumSet.noneOf(Role.class))
+                    .add(Role.valueOf(rs.getString("role")));
+        });
+        List<User> users = jdbcTemplate.query("SELECT * FROM users ORDER BY name, email", ROW_MAPPER);
+        users.forEach(u -> u.setRoles(map.get(u.getId())));
+        return users;
     }
 
-    private int[] insertRoles(Set<Role> roles, Integer userId) {
-        List<Role> roleList = new ArrayList<>(roles);
-        return jdbcTemplate.batchUpdate(
-                "INSERT INTO user_roles (user_id, role) VALUES (?, ?)",
-                new BatchPreparedStatementSetter() {
-                    public void setValues(PreparedStatement ps, int i) throws SQLException {
-                        ps.setInt(1, userId);
-                        ps.setString(2, roleList.get(i).name());
-                    }
-
-                    public int getBatchSize() {
-                        return roleList.size();
-                    }
-                });
-    }
-
-    private void deleteRoles(Integer userId) {
-        jdbcTemplate.update("DELETE FROM user_roles ur WHERE ur.user_id = ?", userId);
-    }
-
-    private List<User> mergeUserRoles(List<User> users) {
-        class UserCollector implements Collector<User, Map<Integer, User>, List<User>> {
-            @Override
-            public Supplier<Map<Integer, User>> supplier() {
-                return LinkedHashMap::new;
-            }
-
-            @Override
-            public BiConsumer<Map<Integer, User>, User> accumulator() {
-                return (map, user) -> map.merge(user.getId(), user, (oldUser, newUser) -> {
-                    Set<Role> roles = oldUser.getRoles();
-                    roles.addAll(newUser.getRoles());
-                    oldUser.setRoles(roles);
-                    return oldUser;
-                });
-            }
-
-            @Override
-            public BinaryOperator<Map<Integer, User>> combiner() {
-                return (map1, map2) -> {
-                    map1.putAll(map2);
-                    return map1;
-                };
-            }
-
-            @Override
-            public Function<Map<Integer, User>, List<User>> finisher() {
-                return (map) -> new ArrayList<>(map.values());
-            }
-
-            @Override
-            public Set<Characteristics> characteristics() {
-                return Collections.emptySet();
-            }
+    private void insertRoles(User u) {
+        Set<Role> roles = u.getRoles();
+        if (!CollectionUtils.isEmpty(roles)) {
+            jdbcTemplate.batchUpdate("INSERT INTO user_roles (user_id, role) VALUES (?, ?)", roles, roles.size(),
+                    (ps, role) -> {
+                        ps.setInt(1, u.getId());
+                        ps.setString(2, role.name());
+                    });
         }
-        return users.stream()
-                .collect(new UserCollector());
     }
 
+    private void deleteRoles(User u) {
+        jdbcTemplate.update("DELETE FROM user_roles WHERE user_id=?", u.getId());
+    }
 
+    private User setRoles(User u) {
+        if (u != null) {
+            List<Role> roles = jdbcTemplate.query("SELECT role FROM user_roles  WHERE user_id=?",
+                    (rs, rowNum) -> Role.valueOf(rs.getString("role")), u.getId());
+            u.setRoles(roles);
+        }
+        return u;
+    }
 }
