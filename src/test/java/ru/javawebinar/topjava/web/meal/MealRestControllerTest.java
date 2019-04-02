@@ -1,5 +1,6 @@
 package ru.javawebinar.topjava.web.meal;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.ResultActions;
@@ -8,15 +9,25 @@ import ru.javawebinar.topjava.model.Meal;
 import ru.javawebinar.topjava.web.AbstractControllerTest;
 import ru.javawebinar.topjava.web.json.JsonUtil;
 
-import java.time.LocalDateTime;
-import java.time.Month;
 import java.util.List;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static ru.javawebinar.topjava.MealTestData.*;
+import static ru.javawebinar.topjava.MealTestData.MEAL1;
+import static ru.javawebinar.topjava.MealTestData.MEAL1_ID;
+import static ru.javawebinar.topjava.MealTestData.MEAL2;
+import static ru.javawebinar.topjava.MealTestData.MEAL3;
+import static ru.javawebinar.topjava.MealTestData.MEAL4;
+import static ru.javawebinar.topjava.MealTestData.MEAL5;
+import static ru.javawebinar.topjava.MealTestData.MEAL6;
+import static ru.javawebinar.topjava.MealTestData.assertMatch;
+import static ru.javawebinar.topjava.MealTestData.contentJson;
+import static ru.javawebinar.topjava.MealTestData.getCreated;
+import static ru.javawebinar.topjava.MealTestData.getUpdated;
+import static ru.javawebinar.topjava.MealToTestData.MEALS_TO;
+import static ru.javawebinar.topjava.MealToTestData.contentJson;
 import static ru.javawebinar.topjava.TestUtil.readFromJson;
 import static ru.javawebinar.topjava.UserTestData.USER;
 import static ru.javawebinar.topjava.UserTestData.USER_ID;
@@ -77,13 +88,26 @@ class MealRestControllerTest extends AbstractControllerTest {
 
     @Test
     void testGetBetween() throws Exception {
-        String uriParameters = "?startDateTime=" +
-                LocalDateTime.of(2015, Month.MAY, 30, 0, 0, 0) + "&" +
-                "endDateTime=" + LocalDateTime.of(2015, Month.MAY, 30, 23, 59, 59);
-        mockMvc.perform(get(REST_URL + "between" + uriParameters))
+        mockMvc.perform(get(REST_URL + "filter")
+                .param("startDate", "2015-05-30")
+                .param("startTime", "00:00:00")
+                .param("endDate", "2015-05-30")
+                .param("endTime", "23:59:59"))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(MealToTestData.contentJson(getWithExcess(List.of(MEAL3, MEAL2, MEAL1), USER.getCaloriesPerDay())));
+    }
+
+    @Test
+    void getBetweenWithNull() throws Exception {
+        mockMvc.perform(get(REST_URL + "/filter")
+                .param("startDate", "")
+                .param("startTime", "")
+                .param("endDate", "")
+                .param("endTime", ""))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(contentJson(MEALS_TO));
     }
 }
