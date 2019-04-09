@@ -27,6 +27,11 @@ tr[data-mealExcess="true"] {
     cursor: pointer;
 }
 
+.notEnabled{
+    color: grey;
+    background-color: #abb8b7;
+
+}
 /*https://getbootstrap.com/docs/4.0/examples/sticky-footer/sticky-footer.css*/
 html {
     position: relative;

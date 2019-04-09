@@ -18,6 +18,8 @@ public interface UserRepository {
 
     List<User> getAll();
 
+    boolean changeEnabledFlag(int id, boolean checked);
+
     default User getWithMeals(int id) {
         throw new UnsupportedOperationException();
     }

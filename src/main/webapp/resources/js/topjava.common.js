@@ -32,12 +32,6 @@ function deleteRow(id) {
     });
 }
 
-function updateTable() {
-    $.get(context.ajaxUrl, function (data) {
-        context.datatableApi.clear().rows.add(data).draw();
-    });
-}
-
 function save() {
     $.ajax({
         type: "POST",
@@ -53,10 +47,7 @@ function save() {
 let failedNote;
 
 function closeNoty() {
-    if (failedNote) {
-        failedNote.close();
-        failedNote = undefined;
-    }
+    failedNote ? failedNote.close() : failedNote = undefined;
 }
 
 function successNoty(text) {
@@ -76,4 +67,8 @@ function failNoty(jqXHR) {
         type: "error",
         layout: "bottomRight"
     }).show();
+}
+
+function redrawTable(data) {
+    context.datatableApi.clear().rows.add(data).draw();
 }
