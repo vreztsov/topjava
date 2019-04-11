@@ -46,11 +46,9 @@ $(function () {
             url: context.ajaxUrl + "?id=" + checkBox.closest("tr").attr("id") + "&checked=" + checked,
             type: "PUT"
         }).done(function () {
-            if (checked) {
-                checkBox.closest("tr").removeClass("notEnabled").addClass("enabled");
-            } else {
-                checkBox.closest("tr").removeClass("enabled").addClass("notEnabled");
-            }
+            var s1 = checked ? "notEnabled" : "enabled";
+            var s2 = checked ? "enabled" : "notEnabled";
+            checkBox.closest("tr").removeClass(s1).addClass(s2);
             successNoty(checked ? "Enabled" : "Disabled");
         }).fail(function (jqXHR) {
             checkBox.prop('checked', !checked);
