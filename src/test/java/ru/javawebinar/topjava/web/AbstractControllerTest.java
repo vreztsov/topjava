@@ -3,6 +3,8 @@ package ru.javawebinar.topjava.web;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.web.SpringJUnitWebConfig;
 import org.springframework.test.web.servlet.MockMvc;
@@ -39,13 +41,16 @@ abstract public class AbstractControllerTest {
     protected MockMvc mockMvc;
 
     @Autowired
+    protected UserService userService;
+
+    @Autowired
+    private MessageSource messageSource;
+
+    @Autowired
     private CacheManager cacheManager;
 
     @Autowired(required = false)
     private JpaUtil jpaUtil;
-
-    @Autowired
-    protected UserService userService;
 
     @Autowired
     private WebApplicationContext webApplicationContext;
@@ -65,5 +70,9 @@ abstract public class AbstractControllerTest {
         if (jpaUtil != null) {
             jpaUtil.clear2ndLevelHibernateCache();
         }
+    }
+
+    protected String getLocalizedMessage(String messageCode) {
+        return messageSource.getMessage(messageCode, null, LocaleContextHolder.getLocale());
     }
 }

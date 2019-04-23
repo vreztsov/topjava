@@ -2,21 +2,28 @@ package ru.javawebinar.topjava.web.user;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import ru.javawebinar.topjava.model.Role;
 import ru.javawebinar.topjava.model.User;
+import ru.javawebinar.topjava.util.exception.ErrorInfo;
+import ru.javawebinar.topjava.util.exception.ErrorType;
 import ru.javawebinar.topjava.web.AbstractControllerTest;
 import ru.javawebinar.topjava.web.json.JsonUtil;
 
 import java.util.Collections;
+import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static ru.javawebinar.topjava.TestUtil.readFromJson;
-import static ru.javawebinar.topjava.TestUtil.userHttpBasic;
+import static ru.javawebinar.topjava.TestUtil.*;
 import static ru.javawebinar.topjava.UserTestData.*;
+import static ru.javawebinar.topjava.web.ExceptionInfoHandler.DUPLICATE_EMAIL_MESSAGE_CODE;
 
 class AdminRestControllerTest extends AbstractControllerTest {
 
@@ -88,10 +95,38 @@ class AdminRestControllerTest extends AbstractControllerTest {
         mockMvc.perform(put(REST_URL + USER_ID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(userHttpBasic(ADMIN))
-                .content(JsonUtil.writeValue(updated)))
+                .content(jsonWithPassword(updated, updated.getPassword())))
                 .andExpect(status().isNoContent());
 
         assertMatch(userService.get(USER_ID), updated);
+    }
+
+    @Test
+    void testUpdateNotValid() throws Exception {
+        User updated = new User(USER);
+        updated.setName("");
+        mockMvc.perform(put(REST_URL + USER_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(userHttpBasic(ADMIN))
+                .content(JsonUtil.writeValue(updated)))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NEVER)
+    void testUpdateDuplicateEmail() throws Exception {
+        User updated = new User(USER);
+        updated.setEmail(ADMIN.getEmail());
+        MvcResult result = mockMvc.perform(put(REST_URL + USER_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(userHttpBasic(ADMIN))
+                .content(jsonWithPassword(updated, updated.getPassword())))
+                .andExpect(status().isUnprocessableEntity())
+                .andReturn();
+
+        ErrorInfo expectedErrorInfo = new ErrorInfo("http://localhost" + REST_URL + USER_ID,
+                ErrorType.VALIDATION_ERROR, List.of(getLocalizedMessage(DUPLICATE_EMAIL_MESSAGE_CODE)));
+        assertThat(readFromJsonMvcResult(result, ErrorInfo.class)).isEqualToComparingFieldByField(expectedErrorInfo);
     }
 
     @Test
@@ -108,6 +143,32 @@ class AdminRestControllerTest extends AbstractControllerTest {
 
         assertMatch(returned, expected);
         assertMatch(userService.getAll(), ADMIN, expected, USER);
+    }
+
+    @Test
+    void testCreateNotValid() throws Exception {
+        User created = new User(null, "", "", "", 0, Role.ROLE_USER, Role.ROLE_ADMIN);
+        mockMvc.perform(post(REST_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(userHttpBasic(ADMIN))
+                .content(jsonWithPassword(created, "newPass")))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NEVER)
+    void testCreateDuplicateEmail() throws Exception {
+        User created = new User(null, "New User", USER.getEmail(), "123456789", 1000, Role.ROLE_USER, Role.ROLE_ADMIN);
+        MvcResult result = mockMvc.perform(post(REST_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(userHttpBasic(ADMIN))
+                .content(jsonWithPassword(created, created.getPassword())))
+                .andExpect(status().isConflict())
+                .andReturn();
+
+        ErrorInfo expectedErrorInfo = new ErrorInfo("http://localhost" + REST_URL,
+                ErrorType.VALIDATION_ERROR, List.of(getLocalizedMessage(DUPLICATE_EMAIL_MESSAGE_CODE)));
+        assertThat(readFromJsonMvcResult(result, ErrorInfo.class)).isEqualToComparingFieldByField(expectedErrorInfo);
     }
 
     @Test
