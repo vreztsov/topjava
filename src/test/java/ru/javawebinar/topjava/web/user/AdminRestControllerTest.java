@@ -117,16 +117,11 @@ class AdminRestControllerTest extends AbstractControllerTest {
     void testUpdateDuplicateEmail() throws Exception {
         User updated = new User(USER);
         updated.setEmail(ADMIN.getEmail());
-        MvcResult result = mockMvc.perform(put(REST_URL + USER_ID)
+        mockMvc.perform(put(REST_URL + USER_ID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(userHttpBasic(ADMIN))
                 .content(jsonWithPassword(updated, updated.getPassword())))
-                .andExpect(status().isUnprocessableEntity())
-                .andReturn();
-
-        ErrorInfo expectedErrorInfo = new ErrorInfo("http://localhost" + REST_URL + USER_ID,
-                ErrorType.VALIDATION_ERROR, List.of(getLocalizedMessage(DUPLICATE_EMAIL_MESSAGE_CODE)));
-        assertThat(readFromJsonMvcResult(result, ErrorInfo.class)).isEqualToComparingFieldByField(expectedErrorInfo);
+                .andExpect(status().isConflict());
     }
 
     @Test
@@ -159,16 +154,11 @@ class AdminRestControllerTest extends AbstractControllerTest {
     @Transactional(propagation = Propagation.NEVER)
     void testCreateDuplicateEmail() throws Exception {
         User created = new User(null, "New User", USER.getEmail(), "123456789", 1000, Role.ROLE_USER, Role.ROLE_ADMIN);
-        MvcResult result = mockMvc.perform(post(REST_URL)
+        mockMvc.perform(post(REST_URL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(userHttpBasic(ADMIN))
                 .content(jsonWithPassword(created, created.getPassword())))
-                .andExpect(status().isConflict())
-                .andReturn();
-
-        ErrorInfo expectedErrorInfo = new ErrorInfo("http://localhost" + REST_URL,
-                ErrorType.VALIDATION_ERROR, List.of(getLocalizedMessage(DUPLICATE_EMAIL_MESSAGE_CODE)));
-        assertThat(readFromJsonMvcResult(result, ErrorInfo.class)).isEqualToComparingFieldByField(expectedErrorInfo);
+                .andExpect(status().isConflict());
     }
 
     @Test

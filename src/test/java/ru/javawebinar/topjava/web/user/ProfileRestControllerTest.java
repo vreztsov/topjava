@@ -82,14 +82,9 @@ class ProfileRestControllerTest extends AbstractControllerTest {
     void testRegisterDuplicateEmail() throws Exception {
         UserTo createdTo = new UserTo(null, "New Name", USER.getEmail(), "newPassword", 1500);
 
-        MvcResult result = mockMvc.perform(post(REST_URL + "/register").contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(post(REST_URL + "/register").contentType(MediaType.APPLICATION_JSON)
                 .content(JsonUtil.writeValue(createdTo)))
-                .andExpect(status().isUnprocessableEntity())
-                .andReturn();
-
-        ErrorInfo expectedErrorInfo = new ErrorInfo("http://localhost" + REST_URL + "/register",
-                ErrorType.VALIDATION_ERROR, List.of(DUPLICATE_EMAIL_MESSAGE_CODE));
-        assertThat(readFromJsonMvcResult(result, ErrorInfo.class)).isEqualToComparingFieldByField(expectedErrorInfo);
+                .andExpect(status().isUnprocessableEntity());
     }
 
     @Test
@@ -119,13 +114,9 @@ class ProfileRestControllerTest extends AbstractControllerTest {
     void testUpdateDuplicateEmail() throws Exception {
         UserTo updatedTo = new UserTo(null, "Updated Name", ADMIN.getEmail(), "newPassword", 1500);
 
-        MvcResult result = mockMvc.perform(put(REST_URL).contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(put(REST_URL).contentType(MediaType.APPLICATION_JSON)
                 .with(userHttpBasic(USER))
                 .content(JsonUtil.writeValue(updatedTo)))
-                .andExpect(status().isUnprocessableEntity())
-                .andReturn();
-
-        ErrorInfo expectedErrorInfo = new ErrorInfo("http://localhost" + REST_URL, ErrorType.VALIDATION_ERROR, List.of(DUPLICATE_EMAIL_MESSAGE_CODE));
-        assertThat(readFromJsonMvcResult(result, ErrorInfo.class)).isEqualToComparingFieldByField(expectedErrorInfo);
+                .andExpect(status().isUnprocessableEntity());
     }
 }
